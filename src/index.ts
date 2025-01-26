@@ -38,6 +38,11 @@ async function connectDB(){
 
 connectDB();
 
+app.get('/',(req,res)=>{
+    console.log("the backend is working and up");
+    
+})
+
 app.post('/api/v1/user/signup',async (req,res)=>{
     const {username , password} = req.body;
 
