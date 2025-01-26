@@ -39,7 +39,7 @@ async function connectDB(){
 connectDB();
 
 app.get('/',(req,res)=>{
-    console.log("the backend is working and up");
+    res.send("the backend is working and up")
     
 })
 
