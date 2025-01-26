@@ -9,16 +9,31 @@ import { userMiddleware } from './middleware';
 import { Link } from './models/link.model';
 import { random } from './utils';
 import cors from "cors"
+import 'express-async-errors';
+import { errorHandler } from './middleware';
 
 const app = express()
 
 app.use(express.json());
 app.use(cors())
 
+if (!process.env.JWT_SECRET || !process.env.MONGO_URL) {
+    console.error('Missing required environment variables');
+    process.exit(1);
+}
+
+console.log(process.env.MONGO_URL)
 async function connectDB(){
-    await mongoose.connect(process.env.MONGO_URL!)
-    .then(()=> console.log("db is connected"))
-    .catch((e) => console.log("error connecting db : ",e))
+    try {
+        await mongoose.connect(process.env.MONGO_URL!);
+        console.log("DB is connected");
+        // Start server only after DB connection
+        app.listen(8080, () => console.log("App is listening on port 8080"));
+    } catch (e) {
+        console.error("Error connecting to DB:", e);
+        // Exit process if DB connection fails
+        process.exit(1);
+    }
 }
 
 connectDB();
@@ -212,8 +227,15 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
     })
 })
 
+// Add error handling middleware at the end
+app.use(errorHandler);
 
-app.listen(8080,()=>{
-    console.log("app is listening on port 8080");
-    
-})
+// Add global error listeners
+process.on('unhandledRejection', (reason: Error | any) => {
+    console.error('Unhandled Rejection at:', reason.stack || reason);
+});
+
+process.on('uncaughtException', (error: Error) => {
+    console.error('Uncaught Exception:', error);
+    // Optional: restart the process here if needed
+});
