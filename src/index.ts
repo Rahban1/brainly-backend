@@ -44,7 +44,7 @@ async function connectDB() {
         const httpServer = http.createServer(app);
         
         // Start HTTP server
-        httpServer.listen(80, '0.0.0.0', () => {
+        httpServer.listen(3000, '0.0.0.0', () => {
             console.log("HTTP server is listening on port 80");
         });
 
