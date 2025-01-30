@@ -1,6 +1,9 @@
 import express from 'express'
 import mongoose from 'mongoose';
 import 'dotenv/config'
+// Add these imports
+import https from 'https';
+import fs from 'fs';
 import { User } from './models/user.model';
 import bcrypt, { hash } from 'bcrypt'
 import jwt from 'jsonwebtoken'
@@ -11,11 +14,18 @@ import { random } from './utils';
 import cors from "cors"
 import 'express-async-errors';
 import { errorHandler } from './middleware';
+import path from 'path';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const app = express()
 
 app.use(express.json());
-app.use(cors())
+app.use(cors());
+
+app.options('*', cors());
+
+app.use(express.static(path.join(__dirname, '../dist')));
 
 if (!process.env.JWT_SECRET || !process.env.MONGO_URL) {
     console.error('Missing required environment variables');
@@ -23,15 +33,26 @@ if (!process.env.JWT_SECRET || !process.env.MONGO_URL) {
 }
 
 console.log(process.env.MONGO_URL)
+// Replace your existing server start logic in connectDB with this:
 async function connectDB(){
     try {
         await mongoose.connect(process.env.MONGO_URL!);
         console.log("DB is connected");
-        // Start server only after DB connection
-        app.listen(8080, () => console.log("App is listening on port 8080"));
+        
+        // SSL certificate configuration
+        const options = {
+            key: fs.readFileSync('/etc/letsencrypt/live/recollectify.me/privkey.pem'),
+            cert: fs.readFileSync('/etc/letsencrypt/live/recollectify.me/cert.pem')
+        };
+
+        // Create HTTPS server
+        const server = https.createServer(options, app);
+        
+        server.listen(8080, () => {
+            console.log("Secure server is listening on port 8080");
+        });
     } catch (e) {
         console.error("Error connecting to DB:", e);
-        // Exit process if DB connection fails
         process.exit(1);
     }
 }
@@ -231,6 +252,10 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
         content
     })
 })
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
 
 // Add error handling middleware at the end
 app.use(errorHandler);
