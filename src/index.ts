@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import 'dotenv/config'
 // Add these imports
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import { User } from './models/user.model';
 import bcrypt, { hash } from 'bcrypt'
@@ -34,29 +35,42 @@ if (!process.env.JWT_SECRET || !process.env.MONGO_URL) {
 
 console.log(process.env.MONGO_URL)
 // Replace your existing server start logic in connectDB with this:
-async function connectDB(){
+async function connectDB() {
     try {
         await mongoose.connect(process.env.MONGO_URL!);
         console.log("DB is connected");
         
-        // SSL certificate configuration
-        const options = {
-            key: fs.readFileSync('/etc/letsencrypt/live/recollectify.me/privkey.pem'),
-            cert: fs.readFileSync('/etc/letsencrypt/live/recollectify.me/cert.pem')
-        };
-
-        // Create HTTPS server
-        const server = https.createServer(options, app);
+        // Create HTTP server
+        const httpServer = http.createServer(app);
         
-        server.listen(8080, '0.0.0.0', () => {
-            console.log("Secure server is listening on port 8080");
+        // Start HTTP server
+        httpServer.listen(80, '0.0.0.0', () => {
+            console.log("HTTP server is listening on port 80");
         });
+
+        try {
+            // SSL certificate configuration
+            const options = {
+                key: fs.readFileSync('/etc/letsencrypt/live/recollectify.me/privkey.pem'),
+                cert: fs.readFileSync('/etc/letsencrypt/live/recollectify.me/cert.pem')
+            };
+
+            // Create HTTPS server
+            const httpsServer = https.createServer(options, app);
+            
+            // Start HTTPS server
+            httpsServer.listen(443, '0.0.0.0', () => {
+                console.log("HTTPS server is listening on port 443");
+            });
+        } catch (error) {
+            console.error("Error setting up HTTPS server:", error);
+            console.log("Continuing with HTTP only");
+        }
     } catch (e) {
         console.error("Error connecting to DB:", e);
         process.exit(1);
     }
 }
-
 connectDB();
 
 app.get('/',(req,res)=>{
