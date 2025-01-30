@@ -51,8 +51,8 @@ async function connectDB() {
         try {
             // SSL certificate configuration
             const options = {
-                key: fs.readFileSync('/etc/letsencrypt/live/recollectify.me/privkey.pem'),
-                cert: fs.readFileSync('/etc/letsencrypt/live/recollectify.me/cert.pem')
+                key: fs.readFileSync('/etc/letsencrypt/live/api.recollectify.me/privkey.pem'),
+                cert: fs.readFileSync('/etc/letsencrypt/live/api.recollectify.me/cert.pem')
             };
 
             // Create HTTPS server
