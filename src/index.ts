@@ -48,7 +48,7 @@ async function connectDB(){
         // Create HTTPS server
         const server = https.createServer(options, app);
         
-        server.listen(8080, () => {
+        server.listen(8080, '0.0.0.0', () => {
             console.log("Secure server is listening on port 8080");
         });
     } catch (e) {
