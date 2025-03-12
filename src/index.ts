@@ -45,6 +45,7 @@ async function connectDB() {
         // Start HTTP server
         httpServer.listen(3000, '0.0.0.0', () => {
             console.log("HTTP server is listening on port 80");
+            console.log("ci/cd is running")
         });
 
         try {
