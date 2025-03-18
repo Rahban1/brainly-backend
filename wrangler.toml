@@ -1,0 +1,23 @@
+name = "brainly-backend"
+main = "dist/worker.js"
+compatibility_date = "2023-06-01"
+
+[vars]
+JWT_SECRET = "placeholder" # Replace in dashboard
+
+[[kv_namespaces]]
+binding = "BRAINLY_KV"
+id = "bd974db0229d428baf2a4f74e8940b5f" # Create this in Cloudflare dashboard
+
+[build]
+command = "npm run build:worker"
+
+[miniflare]
+kv_persist = true
+
+# Add this to your existing wrangler.toml
+[cors]
+allowed_origins = ["*"]
+allowed_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+allowed_headers = ["Content-Type", "Authorization"]
+max_age = 86400
