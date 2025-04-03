@@ -13,32 +13,50 @@ export const userMiddleware = (req: Request, res: Response, next: NextFunction) 
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
-        res.status(403).json({
+        return res.status(403).json({
             message: "Authorization header not provided"
         });
-        return;
     }
 
     try {
-        const token = authHeader.split(' ')[1]; // Get token from "Bearer <token>"
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+        // Get token from "Bearer <token>"
+        const token = authHeader.split(' ')[1]; 
+        
+        if (!token) {
+            return res.status(403).json({
+                message: "Token not provided"
+            });
+        }
+        
+        if (!process.env.JWT_SECRET) {
+            console.error("Missing JWT_SECRET environment variable");
+            return res.status(500).json({
+                message: "Server configuration error"
+            });
+        }
+        
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         
         if (typeof decoded === "string") {
-            res.status(403).json({
+            return res.status(403).json({
                 message: "Invalid token format"
             });
-            return;
         }
 
+        // Set the userId in the request object
         req.userId = (decoded as JwtPayload).id;
+        
+        // Debug log to track userId being set correctly
+        console.log(`Authenticated user: ${req.userId}`);
+        
         next();
     } catch (error) {
-        res.status(403).json({
+        console.error("Authentication error:", error);
+        return res.status(403).json({
             message: "Invalid or expired token"
         });
-        return;
     }
-}
+};
 
 export const errorHandler = (
     err: Error,

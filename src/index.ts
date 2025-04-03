@@ -64,15 +64,16 @@ async function connectDB() {
             });
         } catch (error) {
             console.error("Error setting up HTTPS server:", error);
-            console.log("Continuing with HTTP only");
+            console.log("Continuing with HTTP only")
         }
     } catch (e) {
         console.error("Error connecting to DB:", e);
         process.exit(1);
     }
 }
-connectDB();
-
+connectDB().then(() => {
+         verifyContentAssociations();
+     });
 app.get('/',(req,res)=>{
     res.send("the backend is working and up and ci/cd is working")
     
@@ -150,39 +151,104 @@ app.post('/api/v1/user/signin',async (req,res)=>{
     })
 })
 
-app.post('/api/v1/content',userMiddleware,async(req,res)=>{
-    const type = req.body.type;
-    const link = req.body.link;
-    const title = req.body.title;
-    const tags = req.body.tags;
-    const content = req.body.content
-    const finalcontent = await Content.create({
-        title,
-        type,
-        link,
-        tags,
-        content,
-        userId : req.userId
-    })
-    if(!finalcontent){
+app.post('/api/v1/content', userMiddleware, async (req, res) => {
+    try {
+        const { type, link, title, tags, content } = req.body;
+        
+        // Ensure userId is properly formatted as ObjectId
+        const userId = new mongoose.Types.ObjectId(req.userId);
+        
+        console.log(`Creating content for user: ${userId}`);
+        
+        const finalcontent = await Content.create({
+            title,
+            type,
+            link,
+            tags,
+            content,
+            userId
+        });
+        
+        res.status(200).json({
+            msg: "content added successfully"
+        });
+    } catch (error) {
+        console.error("Error creating content:", error);
         res.status(500).json({
-            msg : "server error "
-        })
-        return;
+            msg: "server error",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
+});
 
-    res.status(200).json({
-        msg : "content added successfully"
-    })
-})
+// Add this function to your index.ts file
+async function verifyContentAssociations() {
+    try {
+        // Find all content without a valid userId
+        const orphanedContent = await Content.find({
+            $or: [
+                { userId: null },
+                { userId: { $exists: false } }
+            ]
+        });
+        
+        console.log(`Found ${orphanedContent.length} content items without a valid userId`);
+        
+        // Find all users and their content
+        const users = await User.find({});
+        console.log(`Found ${users.length} users in the database`);
+        
+        for (const user of users) {
+            const userContent = await Content.find({ userId: user._id });
+            console.log(`User ${user.username} (${user._id}) has ${userContent.length} content items`);
+        }
+        
+        // Find any potential string vs ObjectId mismatches
+        const allContent = await Content.find({});
+        const potentialMismatches = allContent.filter(item => 
+            typeof item.userId === 'string' || 
+            !(item.userId instanceof mongoose.Types.ObjectId)
+        );
+        
+        console.log(`Found ${potentialMismatches.length} content items with potential userId type mismatches`);
+        
+        return {
+            orphanedContent,
+            potentialMismatches
+        };
+    } catch (error) {
+        console.error("Database verification error:", error);
+        return null;
+    }
+}
 
-app.get('/api/v1/content',userMiddleware,async(req,res)=>{
-    const content = await Content.find({ userId: req.userId })
+// Call this once during startup to verify the database integrity
+// connectDB().then(() => {
+//     verifyContentAssociations();
+// });
 
-    res.status(200).json({
-        content
-    })
-})
+app.get('/api/v1/content', userMiddleware, async (req, res) => {
+    try {
+        // Ensure userId is properly formatted as ObjectId
+        const userId = new mongoose.Types.ObjectId(req.userId);
+        
+        console.log(`Fetching content for user: ${userId}`);
+        
+        const content = await Content.find({ userId });
+        
+        console.log(`Found ${content.length} content items for user ${userId}`);
+        
+        res.status(200).json({
+            content
+        });
+    } catch (error) {
+        console.error("Error fetching content:", error);
+        res.status(500).json({
+            msg: "Error fetching content",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
 
 app.delete("/api/v1/content", userMiddleware, async (req, res) => {
     const { title } = req.body;
@@ -204,29 +270,38 @@ app.delete("/api/v1/content", userMiddleware, async (req, res) => {
 
 app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
     const share = req.body.share;
+    console.log("Share request for userId:", req.userId);
+    
     if(share){
         const existingLink = await Link.findOne({
             userId : req.userId
         })
 
         if(existingLink){
+            console.log("Found existing link:", existingLink);
             res.status(200).json({
                 hash : existingLink.hash
             })
             return;
         }
         const hash = random(10)
-        await Link.create({
+        console.log("Creating new link with hash:", hash, "for userId:", req.userId);
+        
+        const newLink = await Link.create({
             userId : req.userId,
             hash
         })
+        console.log("Created new link:", newLink);
+        
         res.status(200).json({
             hash
         })
     } else {
-        await Link.deleteOne({
+        console.log("Removing link for userId:", req.userId);
+        const result = await Link.deleteOne({
             userId : req.userId
         })
+        console.log("Delete result:", result);
 
         res.status(200).json({
             msg : "removed link"
@@ -236,10 +311,13 @@ app.post("/api/v1/brain/share", userMiddleware, async (req, res) => {
 
 app.get("/api/v1/brain/:shareLink", async (req, res) => {
     const hash = req.params.shareLink;
+    console.log("Looking for share link with hash:", hash);
         
     const link = await Link.findOne({
         hash
     })
+    console.log("Found link:", link);
+    
     if(!link){
         res.status(400).json({
             msg : "link is not found"
@@ -247,9 +325,11 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
         return;
     }
 
+    console.log("Fetching content for userId:", link.userId);
     const content = await Content.find({
         userId : link.userId
     })
+    console.log("Found content items:", content.length);
 
     const user = await User.findOne({
         _id : link.userId
@@ -259,6 +339,7 @@ app.get("/api/v1/brain/:shareLink", async (req, res) => {
         res.status(403).json({
             msg : "user not found"
         })
+        return;
     }
     const username = user?.username
     res.status(200).json({
