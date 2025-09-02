@@ -62,11 +62,9 @@ app.post('/api/v1/user/signup', async (req, res) => {
             return;
         }
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        
         const user = await User.create({
             username,
-            password: hashedPassword
+            password
         });
 
         console.log("User created successfully:", user._id); // Debug log
@@ -83,45 +81,65 @@ app.post('/api/v1/user/signup', async (req, res) => {
     }
 });
 
-app.post('/api/v1/user/signin',async (req,res)=>{
-    const {username, password} = req.body;
+app.post('/api/v1/user/signin', async (req, res) => {
+    try {
+        const {username, password} = req.body;
 
-    //zod validation
+        // Add validation
+        if (!username || !password) {
+            res.status(400).json({
+                msg: "Username and password are required"
+            });
+            return;
+        }
 
-    const user = await User.findOne({
-        username
-    })
+        console.log("Signin attempt for:", username); // Debug log
 
-    if(!user){
-        res.status(403).json({
-            msg : "user not found"
-        })
-        return;
-    }
+        const user = await User.findOne({
+            username
+        });
 
-    const validPassword = await bcrypt.compare(password,user.password);
+        if(!user){
+            console.log("User not found:", username); // Debug log
+            res.status(403).json({
+                msg : "user not found"
+            });
+            return;
+        }
 
-    if(!validPassword){
-        res.status(403).json({
-            msg : "invalid credentials"
-        })
-        return;
-    }
+        const validPassword = await bcrypt.compare(password, user.password);
+        console.log("Password validation result:", validPassword); // Debug log
 
-    const token = jwt.sign({
-        id : user._id
-    },process.env.JWT_SECRET!);
+        if(!validPassword){
+            res.status(403).json({
+                msg : "invalid credentials"
+            });
+            return;
+        }
 
-    if(!token){
+        const token = jwt.sign({
+            id : user._id
+        }, process.env.JWT_SECRET!);
+
+        if(!token){
+            res.status(500).json({
+                msg : "server error"
+            });
+            return;
+        }
+
+        console.log("Signin successful for:", username); // Debug log
+
+        res.status(200).json({
+            token
+        });
+    } catch (error) {
+        console.error("Signin error:", error); // Debug log
         res.status(500).json({
-            msg : "server error"
-        })
-        return;
+            msg: "Server error",
+            error: process.env.NODE_ENV === 'development' ? error : undefined
+        });
     }
-
-    res.status(200).json({
-        token
-    })
 })
 
 app.post('/api/v1/content',userMiddleware,async(req,res)=>{
