@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const contentTypes = ['youtube','twitter','doc','photo']
+const contentTypes = ['youtube','twitter','doc','photo','instagram','pinterest','geeksforgeeks','stackoverflow','github','website']
 
 const contentSchema = new mongoose.Schema({
     type : {
