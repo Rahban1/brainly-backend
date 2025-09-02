@@ -54,9 +54,11 @@ app.post('/api/v1/user/signup',async (req,res)=>{
         return;
     }
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
     const user = await User.create({
         username,
-        password
+        password: hashedPassword
     })
 
     if(!user){
