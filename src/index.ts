@@ -39,38 +39,49 @@ async function connectDB(){
 
 connectDB();
 
-app.post('/api/v1/user/signup',async (req,res)=>{
-    const {username , password} = req.body;
+app.post('/api/v1/user/signup', async (req, res) => {
+    try {
+        const {username, password} = req.body;
+        
+        // Add validation
+        if (!username || !password) {
+            res.status(400).json({
+                msg: "Username and password are required"
+            });
+            return;
+        }
 
-    //zod validation 
+        console.log("Signup attempt for:", username); // Debug log
 
-    const prevUser = await User.findOne({
-        username
-    })
-    if(prevUser){
-        res.status(403).json({
-            msg : "username already exists"
-        })
-        return;
-    }
+        const prevUser = await User.findOne({ username });
+        
+        if (prevUser) {
+            res.status(403).json({
+                msg: "username already exists"
+            });
+            return;
+        }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    
-    const user = await User.create({
-        username,
-        password: hashedPassword
-    })
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const user = await User.create({
+            username,
+            password: hashedPassword
+        });
 
-    if(!user){
+        console.log("User created successfully:", user._id); // Debug log
+
+        res.status(200).json({
+            msg: "user signed up successfully"
+        });
+    } catch (error) {
+        console.error("Signup error:", error); // This will show in Railway logs
         res.status(500).json({
-            msg : "server error"
-        })
-        return;
+            msg: "Server error",
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
-    res.status(200).json({
-        msg : "user signed up successfully"
-    })
-})
+});
 
 app.post('/api/v1/user/signin',async (req,res)=>{
     const {username, password} = req.body;
