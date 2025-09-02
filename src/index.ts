@@ -28,7 +28,8 @@ async function connectDB(){
         await mongoose.connect(process.env.MONGO_URL!);
         console.log("DB is connected");
         // Start server only after DB connection
-        app.listen(8080, () => console.log("App is listening on port 8080"));
+        const PORT = process.env.PORT || 8080;
+        app.listen(PORT, () => console.log(`App is listening on port ${PORT}`));
     } catch (e) {
         console.error("Error connecting to DB:", e);
         // Exit process if DB connection fails
