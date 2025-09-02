@@ -78,7 +78,7 @@ app.post('/api/v1/user/signup', async (req, res) => {
         console.error("Signup error:", error); // This will show in Railway logs
         res.status(500).json({
             msg: "Server error",
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            error: process.env.NODE_ENV === 'development' ? error : undefined
         });
     }
 });
